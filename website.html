@@ -1,0 +1,268 @@
+<html lang="en">
+<head>
+   <meta charset="UTF-8">
+   <meta name="viewport" content="width=device-width, initial-scale=1.0">
+   <title>Pi Slide Analyzer Dashboard</title>
+   <!-- Load Tailwind CSS for beautiful styling -->
+   <script src="https://cdn.tailwindcss.com"></script>
+   <style>
+       body { font-family: 'Inter', sans-serif; }
+       /* Style for pre-wrap to handle Gemini's analysis formatting */
+       .pre-wrap { white-space: pre-wrap; }
+   </style>
+</head>
+<body class="bg-gray-100 p-4 md:p-8 min-h-screen">
+
+
+   <header class="text-center mb-10">
+       <h1 class="text-4xl font-extrabold text-indigo-700 tracking-tight">
+         Pi Slide Analyzer Dashboard 🚀
+       </h1>
+       <p class="mt-2 text-xl text-gray-500">
+         Real-time analysis results from the Raspberry Pi.
+       </p>
+   </header>
+
+
+   <main id="app-container" class="max-w-6xl mx-auto">
+       <!-- Loading State -->
+       <div id="loading-state" class="flex items-center justify-center p-12 bg-white rounded-xl shadow-lg">
+           <svg class="animate-spin text-indigo-500 w-8 h-8 mr-3" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+               <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
+               <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+           </svg>
+           <p class="text-lg text-gray-700">Connecting to Pi results via Firestore...</p>
+       </div>
+
+
+       <!-- Results will be injected here -->
+       <div id="slides-list" class="space-y-8 hidden"></div>
+
+
+       <!-- Empty State -->
+       <div id="empty-state" class="text-center p-12 bg-white rounded-xl shadow-lg max-w-3xl mx-auto hidden">
+           <p class="text-2xl font-medium text-gray-600">
+               Awaiting first slide analysis from the Raspberry Pi...
+           </p>
+           <p class="mt-2 text-indigo-500">
+               Make sure the Pi script is running and configured to write to Firestore.
+           </p>
+       </div>
+   </main>
+
+
+   <!-- Load Firebase SDKs from CDN -->
+   <script type="module">
+       import { initializeApp } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-app.js";
+       import { getAuth, signInAnonymously, signInWithCustomToken, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-auth.js";
+       import {
+           getFirestore,
+           collection,
+           query,
+           onSnapshot,
+           limit
+       } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
+      
+       // --- Global Variables (Mandatory for Canvas Environment) ---
+       const appId = typeof __app_id !== 'undefined' ? __app_id : 'default-slide-analyzer';
+       const firebaseConfig = typeof __firebase_config !== 'undefined' ? JSON.parse(__firebase_config) : {};
+       const initialAuthToken = typeof __initial_auth_token !== 'undefined' ? __initial_auth_token : null;
+      
+       const COLLECTION_PATH = `/artifacts/${appId}/public/data/slides_analysis`;
+
+
+       let db;
+       let auth;
+       let userId = null;
+       let authReady = false;
+
+
+       // --- DOM Elements ---
+       const loadingState = document.getElementById('loading-state');
+       const slidesList = document.getElementById('slides-list');
+       const emptyState = document.getElementById('empty-state');
+
+
+       // Function to safely set the UI state
+       function setUIState({ isLoading, isEmpty, showList }) {
+           loadingState.classList.toggle('hidden', !isLoading);
+           emptyState.classList.toggle('hidden', !isEmpty);
+           slidesList.classList.toggle('hidden', !showList);
+       }
+
+
+       // ----------------------------------------------------
+       // 1. UI RENDERING LOGIC
+       // ----------------------------------------------------
+
+
+       function createSlideCard(data) {
+           const imageSrc = data.imageData
+               ? `data:image/jpeg;base64,${data.imageData}`
+               : `https://placehold.co/1080x720/6366f1/ffffff?text=NO+IMAGE`;
+          
+           const readableTime = data.timestamp
+               ? new Date(data.timestamp).toLocaleString()
+               : "Time data missing";
+          
+           // Using Lucide-React equivalent SVG icons directly in HTML
+           const bookOpenIcon = `<svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M2 19c0 1.5 1 2 2 2h16c1 0 2-.5 2-2"/><path d="M22 19V5c0-1-1-2-2-2H4c-1 0-2 1-2 2v14"/></svg>`;
+           const clockIcon = `<svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>`;
+
+
+           const card = document.createElement('div');
+           card.className = "bg-white shadow-xl rounded-xl overflow-hidden transform hover:scale-[1.01] transition duration-300 ease-in-out";
+          
+           card.innerHTML = `
+               <div class="p-4 bg-indigo-600 text-white flex justify-between items-center">
+                   <h3 class="text-xl font-bold flex items-center">
+                       ${bookOpenIcon} <span class="ml-2">Slide ${data.slideId || data.id.substring(0, 8)}</span>
+                   </h3>
+                   <span class="text-sm flex items-center">
+                       ${clockIcon} <span class="ml-1">${readableTime}</span>
+                   </span>
+               </div>
+              
+               <div class="md:flex">
+                   <!-- Image Column -->
+                   <div class="md:w-1/2 p-4">
+                       <img
+                           src="${imageSrc}"
+                           alt="Captured slide ${data.slideId || data.id}"
+                           class="w-full h-auto rounded-lg shadow-md border-4 border-gray-100 object-contain"
+                           onerror="this.onerror=null; this.src='https://placehold.co/1080x720/ef4444/ffffff?text=IMAGE+LOAD+ERROR';"
+                       />
+                       <p class="mt-2 text-xs text-gray-400 text-center truncate">
+                           User ID: ${userId}
+                       </p>
+                   </div>
+
+
+                   <!-- Analysis Column -->
+                   <div class="md:w-1/2 p-6 bg-gray-50">
+                       <h4 class="text-lg font-semibold text-gray-800 mb-3 border-b pb-2">
+                           Gemini Analysis
+                       </h4>
+                       <div class="text-gray-700 space-y-3 pre-wrap">
+                           ${data.analysisText || "Analysis text is pending or missing from the database record."}
+                       </div>
+                   </div>
+               </div>
+           `;
+           return card;
+       }
+
+
+       function renderSlides(slides) {
+           slidesList.innerHTML = '';
+          
+           if (slides.length === 0) {
+               setUIState({ isLoading: false, isEmpty: true, showList: false });
+               return;
+           }
+
+
+           // Sort by timestamp (descending: newest first)
+           slides.sort((a, b) => (b.timestamp || b.id) - (a.timestamp || a.id));
+
+
+           slides.forEach(slide => {
+               slidesList.appendChild(createSlideCard(slide));
+           });
+
+
+           setUIState({ isLoading: false, isEmpty: false, showList: true });
+       }
+
+       
+   // ----------------------------------------------------
+   // 2. FIREBASE & DATA LOGIC
+   // ----------------------------------------------------
+
+   // Removed duplicated <script type="module"> block that attempted to initialize Firebase
+   // inline; initialization is handled in initFirebase() below using the firebaseConfig
+   // provided by the hosting environment.
+
+   async function initFirebase() {
+           if (!firebaseConfig || Object.keys(firebaseConfig).length === 0) {
+               console.error("Firebase config is missing.");
+               // Update UI to show error
+               loadingState.innerHTML = `<div class="flex items-center text-red-700"><svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="w-6 h-6 mr-2"><path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"/><line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg><p>ERROR: Firebase configuration is missing.</p></div>`;
+               return;
+           }
+
+
+           try {
+               const app = initializeApp(firebaseConfig);
+               auth = getAuth(app);
+               db = getFirestore(app);
+
+
+               // Authentication
+               try {
+                   if (initialAuthToken) {
+                       await signInWithCustomToken(auth, initialAuthToken);
+                   } else {
+                       await signInAnonymously(auth);
+                   }
+               } catch (authError) {
+                   console.error("Firebase Auth Error:", authError);
+               }
+
+
+               // Set up Auth State Listener
+               onAuthStateChanged(auth, (user) => {
+                   if (user) {
+                       userId = user.uid;
+                   } else {
+                       userId = crypto.randomUUID();
+                   }
+                   authReady = true;
+                   // Once ready, start listening for data
+                   startDataListener();
+               });
+
+
+           } catch (e) {
+               console.error("Initialization error:", e);
+               setUIState({ isLoading: false, isEmpty: true, showList: false });
+           }
+       }
+      
+       function startDataListener() {
+           if (!authReady || !db) return;
+
+
+           console.log("Starting Firestore listener for path:", COLLECTION_PATH);
+
+
+           // Fetch the latest 20 documents
+           const q = query(
+               collection(db, COLLECTION_PATH),
+               limit(20)
+           );
+
+
+           // Real-time listener
+           onSnapshot(q, (snapshot) => {
+               const slides = [];
+               snapshot.forEach((doc) => {
+                   slides.push({ id: doc.id, ...doc.data() });
+               });
+               renderSlides(slides);
+           }, (err) => {
+               console.error("Firestore Snapshot Error:", err);
+               // Display error
+               setUIState({ isLoading: false, isEmpty: true, showList: false });
+               emptyState.innerHTML = `<p class="text-xl text-red-600">Failed to load data. Error: ${err.message}</p>`;
+           });
+       }
+
+
+
+
+       // Start the application when the window loads
+       window.onload = initFirebase;
+   </script>
+</body>
+</html>

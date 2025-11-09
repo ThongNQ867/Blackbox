@@ -1,0 +1,97 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Gemini Analysis Viewer</title>
+  <style>
+    body {
+      font-family: Arial, sans-serif;
+      background: #f3f4f6;
+      margin: 0;
+      padding: 20px;
+    }
+    h1 {
+      text-align: center;
+      color: #333;
+    }
+    #slides-container {
+      max-width: 900px;
+      margin: 20px auto;
+    }
+    .card {
+      background: white;
+      padding: 20px;
+      border-radius: 10px;
+      margin-bottom: 15px;
+      box-shadow: 0 3px 8px rgba(0,0,0,0.1);
+    }
+    .timestamp {
+      font-size: 14px;
+      color: #888;
+      margin-bottom: 10px;
+    }
+  </style>
+</head>
+<body>
+
+<h1>BlackBox</h1>
+<div id="slides-container">Loading...</div>
+
+<script type="module">
+  import { initializeApp } from "https://www.gstatic.com/firebasejs/12.5.0/firebase-app.js";
+  import { getFirestore, collection, getDocs } from "https://www.gstatic.com/firebasejs/12.5.0/firebase-firestore.js";
+  const firebaseConfig = {
+    apiKey: "AIzaSyB4RNjqRXIzaYk9b43EXig-ewgkM-AWXs0",
+    authDomain: "hackumass1.firebaseapp.com",
+    projectId: "hackumass1",
+    storageBucket: "hackumass1.firebasestorage.app",
+    messagingSenderId: "786517483173",
+    appId: "1:786517483173:web:639bab2f1153d6eb3ef74c",
+    measurementId: "G-K2W1YR7S8J"
+  };
+  const app = initializeApp(firebaseConfig);
+  const db = getFirestore(app);
+  async function loadSlides() {
+    console.log("Fetching Firestore data...");
+
+    try {
+      const querySnapshot = await getDocs(collection(db, "gemini_results"));
+      const slides = [];
+
+      querySnapshot.forEach(doc => {
+        slides.push({
+          id: doc.id,
+          ...doc.data()
+        });
+      });
+
+      slides.sort((a, b) => new Date(b.timestamp) - new Date(a.timestamp));
+
+      const container = document.getElementById("slides-container");
+      container.innerHTML = ""; 
+
+      slides.forEach(slide => {
+        const card = document.createElement("div");
+        card.className = "card";
+
+        card.innerHTML = `
+          <div class="timestamp">📅 ${slide.timestamp}</div>
+          <div class="content">${slide.gemini_text || "No text found"}</div>
+        `;
+
+        container.appendChild(card);
+      });
+
+    } catch (err) {
+      console.error("Error loading Firestore:", err);
+      document.getElementById("slides-container").innerHTML =
+        "Error loading data from Firestore.";
+    }
+  }
+
+  loadSlides();
+</script>
+
+</body>
+</html>

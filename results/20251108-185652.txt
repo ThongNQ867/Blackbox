@@ -1,0 +1,49 @@
+Alright everyone, settle in, settle in! What a beautiful day for learning! I'm absolutely thrilled to delve into some core concepts from physics, mathematics, and computer science with you all today!
+
+### 🏛️ Welcome to the Lecture: Applied Physics & Introduction to Calculus and Programming
+
+* **Introduction Hook:** Let's unlock the secrets of motion, area under curves, and computer languages! This stuff might seem intimidating at first, but trust me, by the end of this lecture, you'll have a solid grasp of these fundamental concepts. Ready to rock?
+
+* **Lecture Break Down:** Let's begin with the first image and work through each whiteboard in turn.
+
+### **Analysis of Image 1**
+* **Section 1: Newton's Second Law of Motion and Forces on an Inclined Plane:** The first thing we see is *F = ma*, a cornerstone of physics!
+*Definition and Context:* This simple equation, Newton's Second Law, states that the net force (F) acting on an object is equal to the mass (m) of the object multiplied by its acceleration (a). It's the bedrock of understanding how things move! Here, this concept is applied to an object on an inclined plane. Let's break down the forces.
+* *Analogy/Example:* Imagine pushing a shopping cart. The harder you push (the force), the faster it accelerates (acceleration). The heavier the cart (mass), the harder you have to push to get the same acceleration.
+
+* **Section 2: Breaking Down Forces into Components:** Now, the fun part: resolving forces! The next line deals with this. We have Fx and Fy, representing the components of force along the x and y axes, respectively.
+*Breakdown of the process or structure:*
+ *   *Fx = mg sin(θ) - µN*: This is the force component along the inclined plane.
+        *   *mg sin(θ)* is the component of gravity pulling the object down the plane. 'mg' represents the gravitational force (mass * gravity), and 'sin(θ)' extracts the component of that force acting along the incline.
+        *   *µN* is the force of friction, where µ is the coefficient of friction, and N is the normal force. Friction opposes motion!
+  *  *Fy = mg cos(θ) + N - ma = 0*: This equation represents the forces perpendicular to the inclined plane (along the y-axis).
+        *   *mg cos(θ)* represents the component of the gravitational force acting perpendicular to the plane.
+        *   *N* is the normal force, which is the force exerted by the plane on the object, acting upwards. Because we assume the object doesn't move vertically, the sum of all vertical forces must equal 0.
+* **Section 3: Solving for the Normal Force and Final Force Equation:**
+*Explanation of relationships and application:* Now comes the cool part! Solving the equations!
+*   *N = mg cos(θ)*: from the Fy equation, you rearrange to discover that the Normal force is equal to mass * gravity * cos of the angle. This makes sense given the previous points.
+*  *F = mg sin(θ) - µmg cos(θ) - µma*: Here the equations are rearranged to be able to be calculated.
+* **Summary:** So, by understanding Newton's Second Law and resolving forces into components, we can analyze the motion of objects on inclined planes, taking into account gravity, friction, and the normal force. It all comes together so nicely!
+
+### **Analysis of Image 2**
+* **Section 1: Pythagoras Theorem**
+*Definition and Context:*
+Pythagorean theorem is expressed as a^2 + b^2 = c^2. Here, 'c' is the hypotenuse (the side opposite the right angle), and 'a' and 'b' are the other two sides (legs) of the triangle.
+*Analogy/Example:* Imagine you want to build a ramp. The length of the ramp is 'c', the height it goes up is 'b', and the distance it covers horizontally is 'a'. The Pythagorean theorem helps you figure out the relationship between these lengths.
+* **Section 2: The Integral Symbol**
+*Explanation of relationships and application:*
+Integral is a calculus operation which is used to calculate the area under a curve. Shown here is the integral of a function f(x) between limits 0 and a (the upper and lower limits).
+
+* **Summary:** A right angle triangle and an introduction to calculus! Excellent!
+
+### **Analysis of Image 3**
+* **Section 1: Programming Languages**
+*Definition and Context:* The board shows a comparison between Python and C++:
+*Python -> Interpreter:* Python is generally referred to as an interpreted language. This means that the code is executed line by line by an interpreter, which translates and runs the code directly, without requiring a separate compilation step.
+*C++ -> Compiler:* C++ is a compiled language. This means that the source code is first translated into machine code (or an intermediate language) by a compiler before it can be executed. The resulting executable file can then be run independently.
+
+* **Summary:** That completes our short lecture on mathematics, physics, and programing!
+
+**Summary:**
+
+And there you have it, folks! Today, we've seen how fundamental principles like F=ma and resolving forces can help us understand real-world scenarios. We then touched on key ideas in mathematics and programming, demonstrating how mathematical principles can be represented by computer systems. Keep exploring, keep questioning, and never stop learning! You all have the potential to be amazing physicists, mathematicians, and programmers! Now, go conquer the world!

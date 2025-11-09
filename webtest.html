@@ -1,0 +1,169 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Pi Slide Analyzer Dashboard</title>
+  <!-- Tailwind CSS -->
+  <script src="https://cdn.tailwindcss.com"></script>
+  <style>
+    body { font-family: 'Inter', sans-serif; }
+    .pre-wrap { white-space: pre-wrap; }
+  </style>
+</head>
+<body class="bg-gray-100 p-4 md:p-8 min-h-screen">
+
+  <header class="text-center mb-10">
+    <h1 class="text-4xl font-extrabold text-indigo-700 tracking-tight">
+      Pi Slide Analyzer Dashboard 🚀
+    </h1>
+    <p class="mt-2 text-xl text-gray-500">
+      Real-time analysis results from the Raspberry Pi.
+    </p>
+  </header>
+
+  <main id="app-container" class="max-w-6xl mx-auto">
+    <!-- Loading State -->
+    <div id="loading-state" class="flex items-center justify-center p-12 bg-white rounded-xl shadow-lg">
+      <svg class="animate-spin text-indigo-500 w-8 h-8 mr-3" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+        <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
+        <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+      </svg>
+      <p class="text-lg text-gray-700">Connecting to Pi results via Firestore...</p>
+    </div>
+
+    <!-- Results will be injected here -->
+    <div id="slides-list" class="space-y-8 hidden"></div>
+
+    <!-- Empty State -->
+    <div id="empty-state" class="text-center p-12 bg-white rounded-xl shadow-lg max-w-3xl mx-auto hidden">
+      <p class="text-2xl font-medium text-gray-600">
+        Awaiting first slide analysis from the Raspberry Pi...
+      </p>
+      <p class="mt-2 text-indigo-500">
+        Make sure the Pi script is running and configured to write to Firestore.
+      </p>
+    </div>
+  </main>
+
+  <!-- Firebase & Dashboard Logic -->
+  <script type="module">
+    // Firebase SDK imports
+    import { initializeApp } from "https://www.gstatic.com/firebasejs/12.5.0/firebase-app.js";
+    import { getAnalytics } from "https://www.gstatic.com/firebasejs/12.5.0/firebase-analytics.js";
+    import { getAuth, signInAnonymously, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/12.5.0/firebase-auth.js";
+    import { getFirestore, collection, query, onSnapshot, limit } from "https://www.gstatic.com/firebasejs/12.5.0/firebase-firestore.js";
+
+    // Firebase config
+    const firebaseConfig = {
+      apiKey: "AIzaSyB4RNjqRXIzaYk9b43EXig-ewgkM-AWXs0",
+      authDomain: "hackumass1.firebaseapp.com",
+      projectId: "hackumass1",
+      storageBucket: "hackumass1.firebasestorage.app",
+      messagingSenderId: "786517483173",
+      appId: "1:786517483173:web:639bab2f1153d6eb3ef74c",
+      measurementId: "G-K2W1YR7S8J"
+    };
+
+    // Initialize Firebase
+    const app = initializeApp(firebaseConfig);
+    const analytics = getAnalytics(app);
+    const auth = getAuth(app);
+    const db = getFirestore(app);
+
+    let userId = null;
+
+    // DOM elements
+    const loadingState = document.getElementById('loading-state');
+    const slidesList = document.getElementById('slides-list');
+    const emptyState = document.getElementById('empty-state');
+
+    // UI state function
+    function setUIState({ isLoading, isEmpty, showList }) {
+      loadingState.classList.toggle('hidden', !isLoading);
+      emptyState.classList.toggle('hidden', !isEmpty);
+      slidesList.classList.toggle('hidden', !showList);
+    }
+
+    // Create slide card
+    function createSlideCard(data) {
+      const imageSrc = data.imageData
+        ? `data:image/jpeg;base64,${data.imageData}`
+        : `https://placehold.co/1080x720/6366f1/ffffff?text=NO+IMAGE`;
+
+      const readableTime = data.timestamp
+        ? new Date(data.timestamp).toLocaleString()
+        : "Time data missing";
+
+      const bookOpenIcon = `<svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M2 19c0 1.5 1 2 2 2h16c1 0 2-.5 2-2"/><path d="M22 19V5c0-1-1-2-2-2H4c-1 0-2 1-2 2v14"/></svg>`;
+      const clockIcon = `<svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>`;
+
+      const card = document.createElement('div');
+      card.className = "bg-white shadow-xl rounded-xl overflow-hidden transform hover:scale-[1.01] transition duration-300 ease-in-out";
+      card.innerHTML = `
+        <div class="p-4 bg-indigo-600 text-white flex justify-between items-center">
+          <h3 class="text-xl font-bold flex items-center">
+            ${bookOpenIcon} <span class="ml-2">Slide ${data.slideId || data.id.substring(0, 8)}</span>
+          </h3>
+          <span class="text-sm flex items-center">
+            ${clockIcon} <span class="ml-1">${readableTime}</span>
+          </span>
+        </div>
+
+        <div class="md:flex">
+          <div class="md:w-1/2 p-4">
+            <img
+              src="${imageSrc}"
+              alt="Captured slide ${data.slideId || data.id}"
+              class="w-full h-auto rounded-lg shadow-md border-4 border-gray-100 object-contain"
+              onerror="this.onerror=null; this.src='https://placehold.co/1080x720/ef4444/ffffff?text=IMAGE+LOAD+ERROR';"
+            />
+            <p class="mt-2 text-xs text-gray-400 text-center truncate">
+              User ID: ${userId}
+            </p>
+          </div>
+
+          <div class="md:w-1/2 p-6 bg-gray-50">
+            <h4 class="text-lg font-semibold text-gray-800 mb-3 border-b pb-2">
+              Gemini Analysis
+            </h4>
+            <div class="text-gray-700 space-y-3 pre-wrap">
+              ${data.gemini_text || "Analysis text is pending or missing from the database record."}
+            </div>
+          </div>
+        </div>
+      `;
+      return card;
+    }
+
+    // Render slides
+    function renderSlides(slides) {
+      slidesList.innerHTML = '';
+
+      if (slides.length === 0) {
+        setUIState({ isLoading: false, isEmpty: true, showList: false });
+        return;
+      }
+
+      slides.sort((a, b) => (b.timestamp || b.id) - (a.timestamp || a.id));
+      slides.forEach(slide => slidesList.appendChild(createSlideCard(slide)));
+      setUIState({ isLoading: false, isEmpty: false, showList: true });
+    }
+
+    // Firestore listener
+    const COLLECTION_PATH = "gemini_results"; // Adjust if your Pi writes to a different collection
+    function startDataListener() {
+      const q = query(collection(db, COLLECTION_PATH), limit(20));
+      onSnapshot(q, snapshot => {
+        const slides = [];
+        snapshot.forEach(doc => slides.push({ id: doc.id, ...doc.data() }));
+        renderSlides(slides);
+      }, err => {
+        console.error("Firestore Snapshot Error:", err);
+        setUIState({ isLoading: false, isEmpty: true, showList: false });
+        emptyState.innerHTML = `<p class="text-xl text-red-600">Failed to load data. Error: ${err.message}</p>`;
+      });
+    }
+  </script>
+</body>
+</html>
